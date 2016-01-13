@@ -1,0 +1,7 @@
+[package]
+name = "ricex"
+version = "0.1.0"
+authors = ["Alex Kane <wkanew@yahoo.co.nz>"]
+
+[dependencies]
+palette = "0.1.0"
