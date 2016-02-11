@@ -1,0 +1,12 @@
+Colourspace Y'CbCr
+Resolution 8
+Quality q
+
+yBlockStream :=
+iterate_by_block(8,8,edge)
+|>dct2d
+|>quant(q)
+|>zigzag
+
+yBitStream :=
+entropyencode(yByteStream, codeScheme)
