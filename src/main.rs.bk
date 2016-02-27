@@ -1,12 +1,14 @@
 extern crate palette;
+extern crate byteorder;
 use std::error::Error;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
-use image::*;
+// use image::*;
 use bmp::*;
 pub mod image;
 pub mod bmp;
+pub mod get_slice;
 
 
 

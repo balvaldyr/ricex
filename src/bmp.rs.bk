@@ -1,40 +1,116 @@
-use palette::Rgb;
-use palette::Color;
 use std::fs::File;
 use std::io::Bytes;
+use palette::Rgb;
+use palette::Color;
+// modules within Ricex
 use image::Image;
+use get_slice::GetSlice;
+use get_slice::ByteToUnsigned;
 
-pub fn bmp_decode(mut stream: Bytes<File>) -> Result<Image, &'static str> {
-    let mut fs: u32 = 0;
-    for i in 0.. {
+pub fn bmp_decode(stream: Bytes<File>) -> Result<Image, &'static str> {
+
+    let mut header = BmpHeader::new();
+    for byte_result in stream {
         // Safety first
-        let cb = match stream.next() {
-            Some(Ok(d)) => d,
+        let safe_byte = match byte_result {
+            Ok(d) => d,
             _ => return Err("unexpected eof"),
         };
-        if i == 2 {
-            fs = cb as u32;
+
+        let header_loaded = match header.is_loaded() {
+            Ok(loaded) => loaded,
+            _ => return Err("header error"),
+        };
+        // if header is fully loaded push data to pixel vector
+        // else push to header
+        if !header_loaded {
+            header.push(safe_byte);
+        } else {
+
         }
-        if i == 3 {
-            fs |= (cb as u32) << 8;
-        }
-        if i == 4 {
-            fs |= (cb as u32) << 16;
-        }
-        if i == 5 {
-            fs |= (cb as u32) << 24;
-        }
-        if i == 6 {
-            println!("File Size = {}", fs)
-        }
-        // print!("{:#x} ", cb);
     }
-    println!("");
+
+
+    println!("offset = {}", header.file_header_data_offset());
+    println!("width = {}", header.image_width());
+    println!("height = {}", header.image_height());
+
 
     let img = img_gen();
 
     return Ok(img);
 }
+
+
+struct BmpHeader {
+    offset_count: u32,
+    header_vec: Vec<u8>,
+}
+
+impl BmpHeader {
+    pub fn new() -> BmpHeader {
+        // assert_eq((width*height) as usize, pixels.len);
+        BmpHeader {
+            offset_count: 0,
+            header_vec: Vec::new(),
+        }
+    }
+
+    pub fn is_loaded(&self) -> Result<bool, &'static str> {
+        if self.file_header_data_offset() == self.offset_count {
+            Ok(true)
+        } else if self.offset_count > 100 {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub fn push(&mut self, data: u8) {
+        self.header_vec.push(data);
+        self.offset_count += 1;
+    }
+
+
+    // Getters
+    fn file_header_data_offset(&self) -> u32 {
+        LittleEndian::get_u32_from_vector(&(self.header_vec), 10).unwrap_or(14)
+    }
+
+    // File Header Types:
+    // Supported :
+    //      BM – 0x424D - Windows 3.1x, 95, NT, ... etc.
+    //      BA – 0x4241 - OS/2 struct bitmap array
+    // Unsupported :
+    //      CI – OS/2 struct color icon
+    //      CP – OS/2 const color pointer
+    //      IC – OS/2 struct icon
+    //      PT – OS/2 pointer
+
+    fn file_header_header_type(&self) -> u16 {
+        BigEndian::get_u16_from_vector(&(self.header_vec), 0).unwrap_or(0)
+    }
+
+    pub fn image_width(&self) -> u32 {
+        match self.file_header_header_type() {
+            0x424D => LittleEndian::get_u32_from_vector(&(self.header_vec), 18).unwrap_or(0),
+            0x4241 => LittleEndian::get_u16_from_vector(&(self.header_vec), 18).unwrap_or(0) as u32,
+            _ => 0,
+        }
+    }
+
+    pub fn image_height(&self) -> u32 {
+        match self.file_header_header_type() {
+            0x424D => LittleEndian::get_u32_from_vector(&(self.header_vec), 22).unwrap_or(0),
+            0x4241 => LittleEndian::get_u16_from_vector(&(self.header_vec), 20).unwrap_or(0) as u32,
+            _ => 0,
+        }
+    }
+}
+
+
+
+// TEST STUFF
 
 fn img_gen() -> Image {
     let rgb_vec: Vec<Color> = vec![RED, RED, GREEN, GREEN, BLUE, BLUE, YELLOW, YELLOW];

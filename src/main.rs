@@ -8,6 +8,7 @@ use std::path::Path;
 use bmp::*;
 pub mod image;
 pub mod bmp;
+pub mod get_slice;
 
 
 

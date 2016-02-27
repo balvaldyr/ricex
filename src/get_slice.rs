@@ -1,0 +1,144 @@
+use std::ops::{Range, Index};
+use std::slice;
+use std::io::Cursor;
+use byteorder::{LittleEndian, BigEndian, ReadBytesExt};
+
+pub trait GetSlice<T> {
+    fn get_slice(&self, range: Range<usize>) -> Option<&[T]>;
+    fn get_slice_mut(&mut self, range: Range<usize>) -> Option<&mut [T]>;
+}
+
+impl<T> GetSlice<T> for [T] where [T]: Index<Range<usize>, Output = [T]>
+{
+    fn get_slice(&self, range: Range<usize>) -> Option<&[T]> {
+        if range.start >= range.end || range.end > self.len() {
+            None
+        } else {
+            unsafe {
+                Some(slice::from_raw_parts(self.as_ptr().offset(range.start as isize),
+                                           range.end - range.start))
+            }
+        }
+    }
+
+    fn get_slice_mut(&mut self, range: Range<usize>) -> Option<&mut [T]> {
+        if range.start >= range.end || range.end > self.len() {
+            None
+        } else {
+            unsafe {
+                Some(slice::from_raw_parts_mut(self.as_mut_ptr().offset(range.start as isize),
+                                               range.end - range.start))
+            }
+        }
+    }
+}
+
+
+pub trait ByteToUnsigned {
+    fn get_u16_from_vector(the_vec: &Vec<u8>, start_idx: usize) -> Option<u16>;
+    fn get_i16_from_vector(the_vec: &Vec<u8>, start_idx: usize) -> Option<i16>;
+    fn get_u32_from_vector(the_vec: &Vec<u8>, start_idx: usize) -> Option<u32>;
+    fn get_i32_from_vector(the_vec: &Vec<u8>, start_idx: usize) -> Option<i32>;
+}
+
+impl ByteToUnsigned for LittleEndian {
+    fn get_u16_from_vector(the_vec: &Vec<u8>, start_idx: usize) -> Option<u16> {
+        let relvec: &[u8] = match the_vec.get_slice(start_idx..(start_idx + 2)) {
+            Some(n) => n,
+            None => return None,
+        };
+        let mut rdr = Cursor::new(relvec);
+        match rdr.read_u16::<LittleEndian>() {
+            Ok(uint) => Some(uint),
+            Err(_) => None,
+        }
+    }
+
+    fn get_u32_from_vector(the_vec: &Vec<u8>, start_idx: usize) -> Option<u32> {
+        let relvec: &[u8] = match the_vec.get_slice(start_idx..(start_idx + 4)) {
+            Some(n) => n,
+            None => return None,
+        };
+        let mut rdr = Cursor::new(relvec);
+        match rdr.read_u32::<LittleEndian>() {
+            Ok(uint) => Some(uint),
+            Err(_) => None,
+        }
+    }
+
+
+    fn get_i16_from_vector(the_vec: &Vec<u8>, start_idx: usize) -> Option<i16> {
+        let relvec: &[u8] = match the_vec.get_slice(start_idx..(start_idx + 2)) {
+            Some(n) => n,
+            None => return None,
+        };
+        let mut rdr = Cursor::new(relvec);
+        match rdr.read_i16::<LittleEndian>() {
+            Ok(uint) => Some(uint),
+            Err(_) => None,
+        }
+    }
+
+    fn get_i32_from_vector(the_vec: &Vec<u8>, start_idx: usize) -> Option<i32> {
+        let relvec: &[u8] = match the_vec.get_slice(start_idx..(start_idx + 4)) {
+            Some(n) => n,
+            None => return None,
+        };
+        let mut rdr = Cursor::new(relvec);
+        match rdr.read_i32::<LittleEndian>() {
+            Ok(uint) => Some(uint),
+            Err(_) => None,
+        }
+    }
+}
+
+impl ByteToUnsigned for BigEndian {
+    fn get_u16_from_vector(the_vec: &Vec<u8>, start_idx: usize) -> Option<u16> {
+        let relvec: &[u8] = match the_vec.get_slice(start_idx..(start_idx + 2)) {
+            Some(n) => n,
+            None => return None,
+        };
+        let mut rdr = Cursor::new(relvec);
+        match rdr.read_u16::<BigEndian>() {
+            Ok(uint) => Some(uint),
+            Err(_) => None,
+        }
+    }
+
+    fn get_u32_from_vector(the_vec: &Vec<u8>, start_idx: usize) -> Option<u32> {
+        let relvec: &[u8] = match the_vec.get_slice(start_idx..(start_idx + 4)) {
+            Some(n) => n,
+            None => return None,
+        };
+        let mut rdr = Cursor::new(relvec);
+        match rdr.read_u32::<BigEndian>() {
+            Ok(uint) => Some(uint),
+            Err(_) => None,
+        }
+    }
+
+
+    fn get_i16_from_vector(the_vec: &Vec<u8>, start_idx: usize) -> Option<i16> {
+        let relvec: &[u8] = match the_vec.get_slice(start_idx..(start_idx + 2)) {
+            Some(n) => n,
+            None => return None,
+        };
+        let mut rdr = Cursor::new(relvec);
+        match rdr.read_i16::<BigEndian>() {
+            Ok(uint) => Some(uint),
+            Err(_) => None,
+        }
+    }
+
+    fn get_i32_from_vector(the_vec: &Vec<u8>, start_idx: usize) -> Option<i32> {
+        let relvec: &[u8] = match the_vec.get_slice(start_idx..(start_idx + 4)) {
+            Some(n) => n,
+            None => return None,
+        };
+        let mut rdr = Cursor::new(relvec);
+        match rdr.read_i32::<BigEndian>() {
+            Ok(uint) => Some(uint),
+            Err(_) => None,
+        }
+    }
+}
