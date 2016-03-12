@@ -1,5 +1,3 @@
-use std::fs::File;
-use std::io::Bytes;
 use palette::Rgb;
 use palette::Color;
 // modules within Ricex
@@ -8,28 +6,19 @@ use get_slice::ByteToUnsigned;
 use byteorder::{LittleEndian, BigEndian};
 
 
-pub fn bmp_decode(stream: Bytes<File>) -> Result<Image, &'static str> {
+pub fn bmp_decode(stream: Vec<u8>) -> Result<Image, &'static str> {
 
     let mut header = BmpHeader::new();
 
-    let (btsz, opt_btmax) = stream.size_hint();
-
-    println!("btsz = {}", btsz);
 
     for byte_result in &stream {
-        // Safety first
-        let safe_byte = match byte_result {
-            Ok(d) => d,
-            _ => return Err("unexpected eof"),
-        };
-
         let header_loaded = match header.is_loaded() {
             Ok(loaded) => loaded,
             _ => return Err("header error"),
         };
         // keep pushing bytes to header until fully loaded
         if !header_loaded {
-            header.push(safe_byte);
+            header.push(*byte_result);
         } else {
             break;
         }
@@ -38,35 +27,81 @@ pub fn bmp_decode(stream: Bytes<File>) -> Result<Image, &'static str> {
     let image_width = header.image_width();
     let image_height = header.image_height();
     let pixel_size = header.image_pixel_size();
-    let row_size = header.image_row_size();
+    let row_size: usize = header.image_row_size();
+
+    // println!("Start of Data!");
+    // println!("width = {}", image_width);
+    // println!("height = {}", image_height);
+    // println!("Pixel Size = {}", pixel_size);
+    // println!("Row Size = {}", row_size);
+
+    let header_offset = header.file_header_data_offset();
+
+    // println!("Size of vec {}", stream.len());
+
+    let data_stream = &stream[header_offset..];
+    // println!("Size of vec {}", data_stream.len());
 
 
-    println!("Start of Data!");
-    println!("width = {}", image_width);
-    println!("height = {}", image_height);
-    println!("Pixel Size = {}", pixel_size);
-    println!("Row Size = {}", row_size);
+    // // raw_image_rows is a vector of slices, each corresponding to individual row data
+    // // make sure our row length times row count is equal to the available data
+    //
+    // let mut raw_image_rows: Vec<&[u8]> = data_stream.chunks(row_size).collect();
 
-    // for byte_result in stream {
-    //     // Safety first
-    //     let safe_byte = match byte_result {
-    //         Ok(d) => d,
-    //         _ => return Err("unexpected eof"),
-    //     };
+    // // if image_height is positive then rows are in bottom to top order, so reverse order
+    // if image_height.is_positive() {
+    //     raw_image_rows.reverse();
+    // }
 
-    //     let header_loaded = match header.is_loaded() {
-    //         Ok(loaded) => loaded,
-    //         _ => return Err("header error"),
-    //     };
+    // let mut img_vec : Vec<Color> = Vec::new();
 
+    // // The bottleneck
+    // for row_slice in raw_image_rows {
+    //     bmp_row_process(row_slice, pixel_size, & mut img_vec);
     // }
 
 
+    // raw_image_rows is a vector of slices, each corresponding to individual row data
+    // make sure our row length times row count is equal to the available data
+    assert_eq!(data_stream.len(), (row_size * (image_height as usize)));
+    let mut img_vec: Vec<Color> = Vec::new();
 
+    // Decide row order based on sign of image_height
+    let row_iterator: Box<Iterator<Item = &[u8]>> = match image_height.is_positive() {
+        true => Box::new(data_stream.chunks(row_size).rev()),
+        false => Box::new(data_stream.chunks(row_size)),
+    };
 
-    let img = img_gen();
+    for row_slice in row_iterator {
+        bmp_row_process(row_slice, pixel_size, &mut img_vec);
+    }
+
+    // let img = img_gen();
+    let img = Image::new(image_width as u32, image_height.abs() as u32, img_vec);
 
     return Ok(img);
+}
+
+
+// 1, 4, 8, 16, 24 and 32 bits per pixel
+
+fn bmp_row_process(row_slice: &[u8], pix_size: u16, vec_collector: &mut Vec<Color>) {
+
+    if pix_size == 24 {
+        // start with 24 bits per pixel... easiest
+        let mut red: u8 = 0;
+        let mut gre: u8 = 0;
+        for (i, ubyte) in row_slice.iter().enumerate() {
+            match i % 3 {
+                0 => red = *ubyte,
+                1 => gre = *ubyte,
+                2 => vec_collector.push(Color::Rgb(Rgb::new_u8(red, gre, *ubyte))),
+                _ => panic!("Remainder when dividing by 3 is 3 or greater!"),
+            }
+        }
+    } else {
+        panic!("Only handle pixel size 24");
+    }
 }
 
 
@@ -143,40 +178,9 @@ impl BmpHeader {
         }
     }
 
-    pub fn image_row_size(&self) -> u32 {
-        let pix_size : u32 = self.image_pixel_size() as u32;
-        let pixels_per_row : u32 = self.image_width().abs() as u32;
-        ((pix_size * pixels_per_row + 31)/32) * 4
+    pub fn image_row_size(&self) -> usize {
+        let pix_size: u32 = self.image_pixel_size() as u32;
+        let pixels_per_row: u32 = self.image_width().abs() as u32;
+        (((pix_size * pixels_per_row + 31) / 32) * 4) as usize
     }
 }
-
-
-
-// TEST STUFF
-
-fn img_gen() -> Image {
-    let rgb_vec: Vec<Color> = vec![RED, RED, GREEN, GREEN, BLUE, BLUE, YELLOW, YELLOW];
-    let im1 = Image::new(2, 4, rgb_vec);
-    return im1;
-}
-
-const RED: Color = Color::Rgb(Rgb {
-    red: 1.0,
-    green: 0.0,
-    blue: 0.0,
-});
-const GREEN: Color = Color::Rgb(Rgb {
-    red: 0.0,
-    green: 1.0,
-    blue: 0.0,
-});
-const BLUE: Color = Color::Rgb(Rgb {
-    red: 0.0,
-    green: 0.0,
-    blue: 1.0,
-});
-const YELLOW: Color = Color::Rgb(Rgb {
-    red: 1.0,
-    green: 1.0,
-    blue: 0.0,
-});

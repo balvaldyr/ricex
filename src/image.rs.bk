@@ -2,9 +2,9 @@ use palette::Color;
 use palette::Rgb;
 
 pub struct Image {
-    width: u32,
-    height: u32,
-    pixels: Vec<Color>,
+    pub width: u32,
+    pub height: u32,
+    pub pixels: Vec<Color>,
 }
 
 impl Image {
@@ -13,7 +13,7 @@ impl Image {
         Image {
             width: width,
             height: height,
-            pixels: pixels.clone(),
+            pixels: pixels,
         }
     }
 

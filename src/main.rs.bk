@@ -1,9 +1,12 @@
 extern crate palette;
 extern crate byteorder;
+extern crate stopwatch;
 use std::error::Error;
-use std::fs::File;
+use std::env;
+use std::fs::{self, File, DirEntry, ReadDir};
 use std::io::prelude::*;
 use std::path::Path;
+use stopwatch::Stopwatch;
 // use image::*;
 use bmp::*;
 pub mod image;
@@ -13,20 +16,50 @@ pub mod get_slice;
 
 
 fn main() {
-    let image_file_path = Path::new("D:\\Alexander\\programming\\ricex\\sample_images\\4.2.03.bmp");
-    let display = image_file_path.display();
-    // Open the path in read-only mode, returns `io::Result<File>`
-    let file = match File::open(&image_file_path) {
-        // The `description` method of `io::Error` returns a string that
-        // describes the error
-        Err(why) => panic!("couldn't open {}: {}", display, Error::description(&why)),
-        Ok(file) => file,
-    };
-    let file_byte_iter = file.bytes();
 
-    let new_img = match bmp::bmp_decode(file_byte_iter) {
-        Err(why) => panic!("couldn't decode image: {}", why),
-        Ok(img) => img,
+    // let image_file_path = Path::new("D:\\Alexander\\programming\\ricex\\sample_images\\4.2.03.bmp");
+
+    let mut p = env::current_dir().unwrap();
+    p.push("sample_images");
+    println!("The current directory is {}", p.display());
+
+    let bmpdir: ReadDir = match fs::read_dir(&p) {
+        Ok(s) => s,
+        Err(why) => {
+            panic!("couldn't open {}: {}",
+                   p.display(),
+                   Error::description(&why))
+        }
     };
-    new_img.print();
+
+
+    for entry in bmpdir {
+        let image_file_path = entry.unwrap().path();
+        let display = image_file_path.display();
+        print!("> {}", image_file_path.file_name().unwrap().to_str().unwrap());
+        // Open the path in read-only mode, returns `io::Result<File>`
+        let mut file = match File::open(&image_file_path) {
+            // The `description` method of `io::Error` returns a string that
+            // describes the error
+            Err(why) => panic!("couldn't open {}: {}", display, Error::description(&why)),
+            Ok(file) => file,
+        };
+        let mut file_byte_vec: Vec<u8> = Vec::new();
+        let file_size = match file.read_to_end(&mut file_byte_vec) {
+            Ok(size) => size,
+            Err(_) => 0,
+        };
+
+        if file_size > 0 {
+    		let sw = Stopwatch::start_new();
+            let new_img = match bmp::bmp_decode(file_byte_vec) {
+                Err(why) => panic!("couldn't decode image: {}", why),
+                Ok(img) => img,
+            };
+            print!(" ({} x {})  ", new_img.width, new_img.height);
+    		println!("bmp::bmp_decode took {}ms", sw.elapsed_ms());
+        }
+
+    }
+
 }

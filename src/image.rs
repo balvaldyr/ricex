@@ -1,10 +1,14 @@
-use palette::Color;
-use palette::Rgb;
+use palette::{Color, Rgb, IntoColor};
+use palette::pixel::RgbPixel;
 
 pub struct Image {
-    width: u32,
-    height: u32,
-    pixels: Vec<Color>,
+    pub width: u32,
+    pub height: u32,
+    pub pixels: Vec<Color>,
+}
+
+fn get_tuple3(p : Rgb) -> (u8,u8,u8) {
+    (float_to_u8(p.red), float_to_u8(p.green), float_to_u8(p.blue))
 }
 
 impl Image {
@@ -13,7 +17,7 @@ impl Image {
         Image {
             width: width,
             height: height,
-            pixels: pixels.clone(),
+            pixels: pixels,
         }
     }
 
@@ -30,6 +34,10 @@ impl Image {
             }
             println!("");
         }
+    }
+
+    pub fn to_tuple_vec(&self) -> Vec<(u8,u8,u8)> {
+        self.pixels.iter().map(|&x| get_tuple3(Rgb::from(x))).collect()
     }
 }
 
